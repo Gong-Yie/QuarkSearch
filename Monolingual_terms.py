@@ -9,8 +9,8 @@ def generate_search_terms():
     llm = ChatOpenAI(
         model="deepseek-chat",
         temperature=0.1,
-        api_key=os.getenv("LLM_API_KEY"),
-        base_url=os.getenv("LLM_BASE_URL")
+        api_key=os.getenv("TERM_API_KEY"),
+        base_url=os.getenv("TERM_BASE_URL")
     )
 
     SYSTEM_PROMPT = """
