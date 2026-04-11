@@ -56,10 +56,10 @@ async def load_playwright_tools(persistent:bool=True):
 
 async def bing_search(search):
     llm=ChatOpenAI(
-        model=os.getenv("BING_MODEL","TOOL_MODEL"),
+        model=os.getenv("BING_MODEL")or os.getenv("TOOL_MODEL"),
         temperature=0.1,
-        api_key=os.getenv("BING_API_KEY","TOOL_API_KEY"),
-        base_url=os.getenv("BING_BASE_URL","TOOL_BASE_URL")
+        api_key=os.getenv("BING_API_KEY")or os.getenv("TOOL_API_KEY"),
+        base_url=os.getenv("BING_BASE_URL")or os.getenv("TOOL_BASE_URL")
     )
     async with load_playwright_tools(persistent=True) as (tools,run_dir):
         agent=create_agent(llm,tools)
