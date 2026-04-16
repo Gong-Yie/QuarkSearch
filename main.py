@@ -3,6 +3,7 @@ from Monolingual_terms import generate_search_terms
 from mcps.bing_mcp import bing_search
 from mcps.bilibili_mcp import bilibili_search
 from mcps.cnki_mcp import cnki_search
+from mcps.github_mcp import github_search
 import asyncio
 
 def build_search_text()->str:
@@ -32,7 +33,8 @@ async def main():
     platforms={
         "1":("必应搜索",bing_search),
         "2":("哔哩哔哩",bilibili_search),
-        "3":("知网",cnki_search)
+        "3":("知网",cnki_search),
+        "4":("GitHub",github_search)
     }
 
     options=[f"{key}-{name}" for key,(name,_) in platforms.items()]
