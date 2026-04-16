@@ -8,27 +8,30 @@ import os
 
 load_dotenv()
 
+
+def _get_github_pat() -> str:
+    token = (
+        os.getenv("GITHUB_PAT_TOKEN")
+        or os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+        or ""
+    ).strip()
+    if not token:
+        raise RuntimeError(
+            "未找到 GitHub PAT。请在环境变量或 .env 中设置 GITHUB_PAT_TOKEN="
+            "你的_PAT。"
+        )
+    return token
+
+
 @asynccontextmanager
 async def load_github_tools():
-    client= MultiServerMCPClient(
+    client = MultiServerMCPClient(
         {
             "github": {
-                "transport": "stdio",
-                "command": "docker",
-                "args": [
-                    "run",
-                    "-i",
-                    "--rm",
-                    "-e",
-                    "GITHUB_PERSONAL_ACCESS_TOKEN",
-                    "-e",
-                    "GITHUB_READ_ONLY=1",
-                    "-e",
-                    "GITHUB_TOOLSETS=repos,issues,pull_requests",
-                    "ghcr.io/github/github-mcp-server",
-                ],
-                "env": {
-                    "GITHUB_PERSONAL_ACCESS_TOKEN": os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+                "transport": "http",
+                "url": "https://api.githubcopilot.com/mcp/",
+                "headers": {
+                    "Authorization": f"Bearer {_get_github_pat()}",
                 },
             }
         }
@@ -37,22 +40,23 @@ async def load_github_tools():
         tools = await load_mcp_tools(session)
         yield tools
 
-async def github_search(search):
-    llm=ChatOpenAI(
-        model=os.getenv("GITHUB_MODEL")or os.getenv("TOOL_MODEL"),
-        temperature=0.1,
-        api_key=os.getenv("GITHUB_API_KEY")or os.getenv("TOOL_API_KEY"),
-        base_url=os.getenv("GITHUB_BASE_URL")or os.getenv("TOOL_BASE_URL")
-    )                
-    async with load_github_tools() as tools:
-        agent=create_agent(llm,tools)
 
-        result=await agent.ainvoke(
+async def github_search(search):
+    llm = ChatOpenAI(
+        model=os.getenv("GITHUB_MODEL") or os.getenv("TOOL_MODEL"),
+        temperature=0.1,
+        api_key=os.getenv("GITHUB_API_KEY") or os.getenv("TOOL_API_KEY"),
+        base_url=os.getenv("GITHUB_BASE_URL") or os.getenv("TOOL_BASE_URL"),
+    )
+    async with load_github_tools() as tools:
+        agent = create_agent(llm, tools)
+
+        result = await agent.ainvoke(
             {
-                "messages":[
+                "messages": [
                     {
-                        "role":"user",
-                        "content":f"""
+                        "role": "user",
+                        "content": f"""
 请使用 GitHub MCP 工具处理下面每一行搜索词。
 
 要求：
@@ -74,5 +78,4 @@ async def github_search(search):
             }
         )
     return result           
-                                                        
 
