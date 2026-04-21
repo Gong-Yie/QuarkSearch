@@ -1,10 +1,14 @@
 from Bilingual_terms import generate_bilingual_terms
 from Monolingual_terms import generate_search_terms
-from mcps.bing_mcp import bing_search
-from mcps.bilibili_mcp import bilibili_search
-from mcps.cnki_mcp import cnki_search
-from mcps.github_mcp import github_search
-import asyncio
+from tools.Bilibili import bilibili_search
+from tools.Github import github_search
+from langchain_core.messages import HumanMessage,SystemMessage
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def build_search_text()->str:
     search_CN=generate_search_terms()
@@ -26,44 +30,43 @@ def build_search_text()->str:
         print("无效的选择，请输入1或2。默认选择单语模式")
         return search_CN
 
-
-async def main():
+def core():
     search=build_search_text()
+    llm = ChatOpenAI(
+        model="deepseek-chat",
+        temperature=0.1,
+        api_key=os.getenv("CORE_API_KEY"),
+        base_url=os.getenv("CORE_BASE_URL")  
+    )
 
-    platforms={
-        "1":("必应搜索",bing_search),
-        "2":("哔哩哔哩",bilibili_search),
-        "3":("知网",cnki_search),
-        "4":("GitHub",github_search)
-    }
+    tools=[bilibili_search,github_search]
 
-    options=[f"{key}-{name}" for key,(name,_) in platforms.items()]
-    print("\n请选择要搜索的平台："+", ".join(options))
-    select=input("请选择搜索的平台（输入数字，多选请用,分隔。如果是全部平台，请输入 all）：").strip().lower()
+    agent=create_agent(
+        model=llm,
+        tools=tools
+    )
 
-    if select=="all":
-        selected_keys = list(platforms.keys())
-    else:
-        selected_keys = [item.strip() for item in select.split(",") if item.strip()]
+    result=agent.invoke(
+        {
+            "messages":[
+                {
+                    "role":"user",
+                    "content":f"""
+请使用以下工具处理下面每一行搜索词：
+1. bilibili_search：用于在哔哩哔哩平台上搜索相关视频内容。
+2. github_search：用于在GitHub平台上搜索相关代码仓库和
+要求：
+1. 对每个搜索词调用工具进行搜索。
+2. 每个搜索词只保留前 5 条最相关的结果。
+搜索词如下：
+{search}
+""".strip(),
+                }
+            ]
+        }
+    )
 
-    invalid = [key for key in selected_keys if key not in platforms]
+    return result.choices[0].message.content
 
-    if invalid:
-        print(f"无效的平台选择：{', '.join(invalid)}")
-        return
-    
-    tasks = []
-    selected_names = []
-    for key in selected_keys:
-        platform_name, platform_func = platforms[key]
-        selected_names.append(platform_name)
-        tasks.append(platform_func(search))
-
-    results = await asyncio.gather(*tasks)
-
-    for platform_name, result in zip(selected_names, results):
-        print(f"\n{platform_name} 搜索结果：")
-        print(result)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+if __name__=="__main__":
+    print(core())

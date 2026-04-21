@@ -42,7 +42,7 @@ def generate_search_terms():
             rounds += 1
             print(f"\n第{rounds}次优化后的搜索词：{result}")
             feedback = input("\n这些结果是否符合你的增强需求？(yes/no)：").strip().lower()
-    messages.append(HumanMessage(content=f"现在只保留相关，近义词和可直接用于搜索的增强表达，一行一个，删除其他无关内容。下面是要操作的内容：{result}"))
+    messages.append(HumanMessage(content=f"现在只保留相关、近义词和可直接用于搜索的增强表达，一行一个，删除其他无关内容。然后保留和刚刚用户最相关的前三条结果。下面是要操作的内容：{result}"))
     result=llm.invoke(messages).content
     print(f"\n最终的搜索词列表：{result}")
 
