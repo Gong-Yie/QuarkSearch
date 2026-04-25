@@ -76,6 +76,8 @@ python main.py
 
 ## 注意事项
 
+微信公众号搜索使用的是wechatsogou库，注意搜索频次
+
 github相关搜索需要github个人访问令牌（Personal Access Token）
 获取方式：
 

@@ -1,0 +1,1 @@
+python -m uvicorn WebUI.app:app --reload

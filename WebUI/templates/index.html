@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuarkSearch WebUI</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <!-- 顶部标题区 -->
+        <section class="hero">
+            <p class="eyebrow">QuarkSearch</p>
+            <h1>多 Agent 搜索增强工具</h1>
+            <p class="subtitle">当前为 WebUI 骨架阶段，搜索词、Agent 日志与结果均为 Mock 数据，仅演示页面结构与数据流。</p>
+        </section>
+
+        <!-- 输入与配置区 -->
+        <section class="grid">
+            <!-- 1. 原始输入 -->
+            <article class="panel">
+                <h2>1. 原始输入</h2>
+                <form action="/generate-terms" method="post" class="stack">
+                    <label for="query">你想搜什么</label>
+                    <textarea id="query" name="query" rows="4" placeholder="例如：机器学习入门">{{ query }}</textarea>
+                    <button type="submit">生成搜索词</button>
+                </form>
+            </article>
+
+            <!-- 2. 搜索配置 -->
+            <article class="panel">
+                <h2>2. 搜索配置</h2>
+                <form action="/search" method="post" class="stack">
+                    <input type="hidden" name="query" value="{{ query }}">
+
+                    <label for="term_text">搜索词列表</label>
+                    <textarea id="term_text" name="term_text" rows="8" placeholder="这里会显示生成后的搜索词，也可以手动修改。">{% for term in terms %}{{ term }}{% if not loop.last %}
+{% endif %}{% endfor %}</textarea>
+
+                    <div class="field">
+                        <span>语言模式</span>
+                        <label class="inline-option">
+                            <input type="radio" name="language_mode" value="mono" {% if language_mode == "mono" %}checked{% endif %}>
+                            单语
+                        </label>
+                        <label class="inline-option">
+                            <input type="radio" name="language_mode" value="bilingual" {% if language_mode == "bilingual" %}checked{% endif %}>
+                            双语
+                        </label>
+                    </div>
+
+                    <div class="field">
+                        <span>搜索平台</span>
+                        <div class="platform-grid">
+                            <label class="inline-option">
+                                <input type="checkbox" name="platforms" value="github" {% if "github" in selected_platforms %}checked{% endif %}>
+                                GitHub
+                            </label>
+                            <label class="inline-option">
+                                <input type="checkbox" name="platforms" value="bilibili" {% if "bilibili" in selected_platforms %}checked{% endif %}>
+                                Bilibili
+                            </label>
+                            <label class="inline-option">
+                                <input type="checkbox" name="platforms" value="bing" {% if "bing" in selected_platforms %}checked{% endif %}>
+                                必应
+                            </label>
+                            <label class="inline-option">
+                                <input type="checkbox" name="platforms" value="google" {% if "google" in selected_platforms %}checked{% endif %}>
+                                Google
+                            </label>
+                            <label class="inline-option">
+                                <input type="checkbox" name="platforms" value="cnki" {% if "cnki" in selected_platforms %}checked{% endif %}>
+                                中国知网
+                            </label>
+                            <label class="inline-option">
+                                <input type="checkbox" name="platforms" value="wechat" {% if "wechat" in selected_platforms %}checked{% endif %}>
+                                微信
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit">开始搜索</button>
+                </form>
+            </article>
+        </section>
+
+        <!-- 3. 当前搜索词 -->
+        <section class="panel">
+            <h2>3. 当前搜索词</h2>
+            {% if terms %}
+                <ul class="term-list">
+                    {% for term in terms %}
+                        <li>{{ term }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="empty">先在上面输入内容，再生成搜索词。</p>
+            {% endif %}
+        </section>
+
+        <!-- 4. Agent 流程透明化（骨架） -->
+        <section class="panel">
+            <h2>4. Agent 流程透明化</h2>
+            {% if agent_logs %}
+                <ul class="log-list">
+                    {% for log in agent_logs %}
+                        <li class="log-item">
+                            <span class="log-step">{{ log.step }}</span>
+                            <span class="log-detail">{{ log.detail }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="empty">搜索后这里会展示 Agent 的思考过程与工具调用日志。</p>
+            {% endif %}
+        </section>
+
+        <!-- 底部占位，为上拉面板的按钮留出空间 -->
+        <div class="bottom-spacer"></div>
+    </main>
+
+    <!-- ============================================================ -->
+    <!-- 搜索结果上拉面板（骨架）                                        -->
+    <!-- ============================================================ -->
+
+    <!-- 底部触发按钮 -->
+    <button id="results-trigger" class="results-trigger" type="button" {% if not results %}disabled{% endif %}>
+        {% if results %}查看搜索结果{% else %}请先进行搜索{% endif %}
+    </button>
+
+    <!-- 遮罩与上拉框 -->
+    <div id="results-overlay" class="results-overlay">
+        <!-- 顶部留出的空隙，点击可关闭 -->
+        <div class="overlay-gap" id="overlay-gap"></div>
+
+        <!-- 上拉框主体 -->
+        <div class="results-drawer">
+            <!-- 上拉框头部：拖拽条 + 关闭按钮 + 平台标签 -->
+            <div class="drawer-header">
+                <div class="drawer-dragbar" id="drawer-dragbar"></div>
+                <div class="drawer-toolbar">
+                    <h3>搜索结果</h3>
+                    <button class="drawer-close" id="drawer-close" type="button" aria-label="关闭">✕</button>
+                </div>
+
+                <!-- 平台标签页 -->
+                {% if results %}
+                <nav class="platform-tabs" id="platform-tabs">
+                    {% for platform in results.keys() %}
+                        <button type="button" class="tab-btn {% if loop.first %}active{% endif %}" data-platform="{{ platform }}">
+                            {{ platform }}
+                        </button>
+                    {% endfor %}
+                </nav>
+                {% endif %}
+            </div>
+
+            <!-- 上拉框内容区：各平台面板 -->
+            <div class="drawer-body">
+                {% if results %}
+                    {% for platform, items in results.items() %}
+                        <div class="platform-panel {% if loop.first %}active{% endif %}" data-platform="{{ platform }}">
+                            <!-- 平台专属提示（骨架占位） -->
+                            <div class="platform-skeleton-hint">
+                                {% if platform == "Bilibili" %}
+                                    <p>🎬 Bilibili 搜索结果将在此渲染视频封面网格、播放量、UP 主信息等。</p>
+                                {% elif platform == "GitHub" %}
+                                    <p>💻 GitHub 搜索结果将在此渲染仓库卡片列表，包含星标数、语言、描述等。</p>
+                                {% elif platform == "必应" %}
+                                    <p>🔍 必应搜索结果将在此渲染网页摘要列表，包含标题、摘要、来源网站等。</p>
+                                {% elif platform == "Google" %}
+                                    <p>🔍 Google 搜索结果将在此渲染网页摘要列表，包含标题、摘要、来源网站等。</p>
+                                {% elif platform == "中国知网" %}
+                                    <p>📚 知网搜索结果将在此渲染学术论文列表，包含标题、作者、期刊、摘要等。</p>
+                                {% elif platform == "微信" %}
+                                    <p>💬 微信搜索结果将在此渲染公众号文章列表，包含标题、公众号、发布时间等。</p>
+                                {% else %}
+                                    <p>{{ platform }} 搜索结果展示区域（待实现专属设计）</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- 通用结果列表（Mock 数据骨架） -->
+                            <div class="result-list">
+                                {% for item in items %}
+                                    <article class="result-card">
+                                        <div class="result-header">
+                                            <h4>{{ item.title }}</h4>
+                                            <span class="relevance-badge" title="相关性评分（骨架）">{{ item.relevance_score }} 分</span>
+                                        </div>
+                                        <p>{{ item.description }}</p>
+                                        <a href="{{ item.url }}" target="_blank" rel="noreferrer">查看链接</a>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty" style="text-align:center; padding: 40px 0;">暂无搜索结果，请先返回上方进行搜索。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const trigger = document.getElementById('results-trigger');
+            const overlay = document.getElementById('results-overlay');
+            const gap = document.getElementById('overlay-gap');
+            const closeBtn = document.getElementById('drawer-close');
+            const tabs = document.getElementById('platform-tabs');
+
+            function openDrawer() {
+                overlay.classList.add('open');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeDrawer() {
+                overlay.classList.remove('open');
+                document.body.style.overflow = '';
+            }
+
+            if (trigger) trigger.addEventListener('click', openDrawer);
+            if (gap) gap.addEventListener('click', closeDrawer);
+            if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
+            // 平台标签切换
+            if (tabs) {
+                tabs.addEventListener('click', function (e) {
+                    const btn = e.target.closest('.tab-btn');
+                    if (!btn) return;
+
+                    const platform = btn.dataset.platform;
+
+                    // 切换标签激活态
+                    tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    // 切换面板显示
+                    document.querySelectorAll('.platform-panel').forEach(p => {
+                        p.classList.toggle('active', p.dataset.platform === platform);
+                    });
+                });
+            }
+
+            // 简单的下滑手势关闭（触摸设备）
+            let startY = 0;
+            const drawer = overlay.querySelector('.results-drawer');
+            if (drawer) {
+                drawer.addEventListener('touchstart', function (e) {
+                    startY = e.touches[0].clientY;
+                }, { passive: true });
+
+                drawer.addEventListener('touchend', function (e) {
+                    const endY = e.changedTouches[0].clientY;
+                    const scrollTop = drawer.scrollTop;
+                    if (endY - startY > 80 && scrollTop <= 0) {
+                        closeDrawer();
+                    }
+                }, { passive: true });
+            }
+        })();
+    </script>
+</body>
+</html>

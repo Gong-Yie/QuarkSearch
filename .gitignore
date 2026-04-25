@@ -3,3 +3,4 @@ __pycache__
 .mcp-data
 .playwright-mcp
 venv
+AGENTS.md

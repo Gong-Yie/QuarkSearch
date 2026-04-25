@@ -6,3 +6,9 @@ python-dotenv
 PyGithub
 bilibili-api-python
 httpx
+fastapi
+uvicorn
+jinja2
+python-multipart
+wechatsogou
+cachelib

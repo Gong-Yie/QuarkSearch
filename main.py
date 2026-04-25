@@ -2,7 +2,6 @@ from Bilingual_terms import generate_bilingual_terms
 from Monolingual_terms import generate_search_terms
 from tools.Bilibili import bilibili_search
 from tools.Github import github_search
-from langchain_core.messages import HumanMessage,SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 from dotenv import load_dotenv
